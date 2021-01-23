@@ -1,13 +1,8 @@
 import 'package:chat/screens/chat.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 void main() async {
   runApp(MyApp());
-  Firestore.instance
-      .collection("col")
-      .document("doc")
-      .setData({"texto": "Pedro"});
 }
 
 class MyApp extends StatelessWidget {

@@ -1,12 +1,14 @@
 import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 class TextComposer extends StatefulWidget {
-  TextComposer(this.sendMessage);
+  TextComposer(this.sendMessage, {this.document});
 
   final Function({String message, File imgFile}) sendMessage;
+  final DocumentSnapshot document;
 
   @override
   _TextComposerState createState() => _TextComposerState();
@@ -14,7 +16,14 @@ class TextComposer extends StatefulWidget {
 
 class _TextComposerState extends State<TextComposer> {
   bool _isComposed = false;
-  final _sendInputController = TextEditingController();
+  TextEditingController _sendInputController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.document != null)
+      _sendInputController.text = widget.document.data["text"];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,14 +34,15 @@ class _TextComposerState extends State<TextComposer> {
           IconButton(
             icon: Icon(Icons.photo_camera),
             onPressed: () async {
-              //ImagePicker.pickImage(source: ImageSource.camera);
               PickedFile selectedFile =
                   await ImagePicker().getImage(source: ImageSource.gallery);
               File selected = File(selectedFile.path);
               if (selected == null)
                 return;
-              else
+              else {
                 widget.sendMessage(imgFile: selected);
+                Navigator.pop(context);
+              }
             },
             color: Colors.black,
           ),
@@ -40,7 +50,9 @@ class _TextComposerState extends State<TextComposer> {
               child: TextField(
             controller: _sendInputController,
             onSubmitted: (text) {
-              widget.sendMessage(message: text);
+              (widget.document == null)
+                  ? widget.sendMessage(message: text)
+                  : widget.sendMessage(message: text);
               _sendInputController.clear();
               setState(() {
                 _isComposed = false;

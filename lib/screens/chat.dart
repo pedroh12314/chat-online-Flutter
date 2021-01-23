@@ -47,6 +47,10 @@ class _ChatScreenState extends State<ChatScreen> {
       final AuthResult authResult =
           await FirebaseAuth.instance.signInWithCredential(authCredential);
       FirebaseUser user = authResult.user;
+      _scaffoldKey.currentState.showSnackBar(SnackBar(
+        content: Text("Logado com sucesso!"),
+        backgroundColor: Colors.green,
+      ));
       return user;
     } catch (error) {
       print("Ocorreu um erro: " + error);
@@ -66,36 +70,43 @@ class _ChatScreenState extends State<ChatScreen> {
         content: Text("Não foi possível logar! tente novamente..."),
         backgroundColor: Colors.red,
       ));
-    }
-    Map<String, dynamic> data = {
-      "uid": user.uid,
-      "nomeDestinatario": user.displayName,
-      "fotoUsuario": user.photoUrl
-    };
+    } else {
+      Map<String, dynamic> data = {};
 
-    if (imgFile != null) {
+      if (imgFile != null) {
+        StorageUploadTask task = FirebaseStorage.instance
+            .ref()
+            .child("images")
+            .child(DateTime.now().millisecondsSinceEpoch.toString() +
+                "_" +
+                _currentUser.uid)
+            .putFile(imgFile);
+
+        StorageTaskSnapshot taskSnapshot = await task.onComplete;
+        String url = await taskSnapshot.ref.getDownloadURL();
+
+        data = {
+          "uid": user.uid,
+          "nomeDestinatario": user.displayName,
+          "fotoUsuario": user.photoUrl,
+          "imageUrl": url,
+          "hora": Timestamp.now()
+        };
+      }
+      if (message != null) {
+        data = {
+          "uid": user.uid,
+          "nomeDestinatario": user.displayName,
+          "fotoUsuario": user.photoUrl,
+          "text": message,
+          "hora": Timestamp.now()
+        };
+      }
+      Firestore.instance.collection("messages").document().setData(data);
       setState(() {
-        _isLoading = true;
+        _isLoading = false;
       });
-      StorageUploadTask task = FirebaseStorage.instance
-          .ref()
-          .child("images")
-          .child(DateTime.now().millisecondsSinceEpoch.toString() +
-              "_" +
-              _currentUser.uid)
-          .putFile(imgFile);
-
-      StorageTaskSnapshot taskSnapshot = await task.onComplete;
-      String url = await taskSnapshot.ref.getDownloadURL();
-
-      data["imageUrl"] = url;
     }
-    if (message != null) data["text"] = message;
-    data["hora"] = Timestamp.now();
-    Firestore.instance.collection("messages").document().setData(data);
-    setState(() {
-      _isLoading = false;
-    });
   }
 
   @override
@@ -122,10 +133,14 @@ class _ChatScreenState extends State<ChatScreen> {
                     googleSign.signOut();
                     _scaffoldKey.currentState.showSnackBar(SnackBar(
                       content: Text("Deslogado com sucesso!"),
-                      backgroundColor: Colors.green,
+                      backgroundColor: Colors.blue,
                     ));
                   })
-              : Container()
+              : IconButton(
+                  icon: Icon(Icons.exit_to_app),
+                  onPressed: () {
+                    _getUser();
+                  })
         ],
       ),
       body: Column(
@@ -150,7 +165,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       itemCount: documents.length,
                       reverse: true,
                       itemBuilder: (contex, index) {
-                        return ChatMessage(documents[index].data,
+                        return ChatMessage(documents[index],
                             documents[index].data['uid'] == _currentUser?.uid);
                       },
                     );
